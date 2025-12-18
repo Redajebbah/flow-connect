@@ -14,16 +14,293 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          city: string
+          created_at: string
+          created_by: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          national_id: string
+          phone: string
+          postal_code: string
+          region: string
+          street: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          created_by?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          national_id: string
+          phone: string
+          postal_code: string
+          region: string
+          street: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          national_id?: string
+          phone?: string
+          postal_code?: string
+          region?: string
+          street?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          dossier_id: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          name: string
+          type: Database["public"]["Enums"]["document_type"]
+          uploaded_at: string
+          uploaded_by: string
+          version: number
+        }
+        Insert: {
+          dossier_id: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          type: Database["public"]["Enums"]["document_type"]
+          uploaded_at?: string
+          uploaded_by: string
+          version?: number
+        }
+        Update: {
+          dossier_id?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          type?: Database["public"]["Enums"]["document_type"]
+          uploaded_at?: string
+          uploaded_by?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dossiers: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string
+          customer_id: string
+          id: string
+          installation_date: string | null
+          meter_number: string | null
+          notes: string | null
+          quotation_amount: number | null
+          reference: string
+          status: Database["public"]["Enums"]["dossier_status"]
+          subscription_type: Database["public"]["Enums"]["subscription_type"]
+          updated_at: string
+          works_required: boolean
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by: string
+          customer_id: string
+          id?: string
+          installation_date?: string | null
+          meter_number?: string | null
+          notes?: string | null
+          quotation_amount?: number | null
+          reference: string
+          status?: Database["public"]["Enums"]["dossier_status"]
+          subscription_type: Database["public"]["Enums"]["subscription_type"]
+          updated_at?: string
+          works_required?: boolean
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          id?: string
+          installation_date?: string | null
+          meter_number?: string | null
+          notes?: string | null
+          quotation_amount?: number | null
+          reference?: string
+          status?: Database["public"]["Enums"]["dossier_status"]
+          subscription_type?: Database["public"]["Enums"]["subscription_type"]
+          updated_at?: string
+          works_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dossiers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      status_history: {
+        Row: {
+          comment: string | null
+          created_at: string
+          dossier_id: string
+          id: string
+          previous_status: Database["public"]["Enums"]["dossier_status"] | null
+          status: Database["public"]["Enums"]["dossier_status"]
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          dossier_id: string
+          id?: string
+          previous_status?: Database["public"]["Enums"]["dossier_status"] | null
+          status: Database["public"]["Enums"]["dossier_status"]
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          dossier_id?: string
+          id?: string
+          previous_status?: Database["public"]["Enums"]["dossier_status"] | null
+          status?: Database["public"]["Enums"]["dossier_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_history_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "commercial" | "technical" | "supervisor"
+      document_type:
+        | "national_id"
+        | "contract"
+        | "quotation"
+        | "installation_report"
+        | "other"
+      dossier_status:
+        | "DRAFT"
+        | "DOSSIER_COMPLETE"
+        | "TECHNICAL_REVIEW"
+        | "WORKS_REQUIRED"
+        | "WORKS_VALIDATED"
+        | "CONTRACT_SENT"
+        | "CONTRACT_SIGNED"
+        | "METER_SCHEDULED"
+        | "METER_INSTALLED"
+        | "INSTALLATION_REPORT_RECEIVED"
+        | "CUSTOMER_VALIDATED"
+        | "SUBSCRIPTION_ACTIVE"
+        | "REJECTED"
+        | "CANCELLED"
+      subscription_type: "water" | "electricity" | "both"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +427,32 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "commercial", "technical", "supervisor"],
+      document_type: [
+        "national_id",
+        "contract",
+        "quotation",
+        "installation_report",
+        "other",
+      ],
+      dossier_status: [
+        "DRAFT",
+        "DOSSIER_COMPLETE",
+        "TECHNICAL_REVIEW",
+        "WORKS_REQUIRED",
+        "WORKS_VALIDATED",
+        "CONTRACT_SENT",
+        "CONTRACT_SIGNED",
+        "METER_SCHEDULED",
+        "METER_INSTALLED",
+        "INSTALLATION_REPORT_RECEIVED",
+        "CUSTOMER_VALIDATED",
+        "SUBSCRIPTION_ACTIVE",
+        "REJECTED",
+        "CANCELLED",
+      ],
+      subscription_type: ["water", "electricity", "both"],
+    },
   },
 } as const
