@@ -13,13 +13,15 @@ import {
   ChevronRight,
   Loader2,
   Download,
-  Trash2
+  Ban,
+  XCircle
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/dossier/StatusBadge';
-import { WorkflowSteps } from '@/components/dossier/WorkflowSteps';
+import { WorkflowSteps, statusLabels } from '@/components/dossier/WorkflowSteps';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   useDossier, 
   useDossierDocuments, 
@@ -36,24 +38,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-
-const statusLabels: Record<DossierStatus, string> = {
-  DRAFT: 'Brouillon',
-  DOSSIER_COMPLETE: 'Dossier complet',
-  TECHNICAL_REVIEW: 'Étude technique',
-  WORKS_REQUIRED: 'Travaux requis',
-  WORKS_VALIDATED: 'Travaux validés',
-  CONTRACT_SENT: 'Contrat envoyé',
-  CONTRACT_SIGNED: 'Contrat signé',
-  METER_SCHEDULED: 'Installation planifiée',
-  METER_INSTALLED: 'Compteur installé',
-  INSTALLATION_REPORT_RECEIVED: 'PV reçu',
-  CUSTOMER_VALIDATED: 'Client validé',
-  SUBSCRIPTION_ACTIVE: 'Abonnement actif',
-  REJECTED: 'Rejeté',
-  CANCELLED: 'Annulé',
-};
 
 const subscriptionTypeLabels: Record<string, string> = {
   water: 'Eau',
@@ -71,6 +67,7 @@ const documentTypeLabels: Record<string, string> = {
 
 export default function DossierDetail() {
   const { id } = useParams();
+  const { isAdmin, isSupervisor } = useAuth();
   const { data: dossier, isLoading } = useDossier(id);
   const { data: documents } = useDossierDocuments(id);
   const { data: history } = useDossierHistory(id);
@@ -79,6 +76,9 @@ export default function DossierDetail() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>('national_id');
+
+  // Users who can validate workflow steps
+  const canValidateWorkflow = isAdmin || isSupervisor;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,16 +95,26 @@ export default function DossierDetail() {
     }
   };
 
-  const handleDownloadDocument = async (filePath: string, fileName: string) => {
+  const handleDownloadDocument = async (filePath: string) => {
     const url = await getDocumentUrl(filePath);
     if (url) {
       window.open(url, '_blank');
     }
   };
 
-  const handleStatusChange = (newStatus: DossierStatus) => {
+  const handleWorkflowValidation = (nextStatus: DossierStatus) => {
     if (!id) return;
-    updateStatus.mutate({ dossierId: id, newStatus });
+    updateStatus.mutate({ dossierId: id, newStatus: nextStatus });
+  };
+
+  const handleRejectDossier = () => {
+    if (!id) return;
+    updateStatus.mutate({ dossierId: id, newStatus: 'REJECTED' });
+  };
+
+  const handleCancelDossier = () => {
+    if (!id) return;
+    updateStatus.mutate({ dossierId: id, newStatus: 'CANCELLED' });
   };
 
   if (isLoading) {
@@ -148,18 +158,56 @@ export default function DossierDetail() {
           </Button>
           <div className="flex items-center gap-3">
             <StatusBadge status={dossier.status} />
-            <Select value={dossier.status} onValueChange={handleStatusChange}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Changer le statut" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {canValidateWorkflow && dossier.status !== 'SUBSCRIPTION_ACTIVE' && 
+             dossier.status !== 'REJECTED' && dossier.status !== 'CANCELLED' && (
+              <div className="flex items-center gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10">
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Rejeter
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Rejeter le dossier</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Êtes-vous sûr de vouloir rejeter ce dossier? Cette action ne peut pas être annulée.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleRejectDossier} className="bg-destructive hover:bg-destructive/90">
+                        Rejeter
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Ban className="h-4 w-4 mr-1" />
+                      Annuler
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Annuler le dossier</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Êtes-vous sûr de vouloir annuler ce dossier? Cette action ne peut pas être annulée.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Retour</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleCancelDossier}>
+                        Confirmer l'annulation
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </div>
         </div>
 
@@ -313,7 +361,7 @@ export default function DossierDetail() {
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        onClick={() => handleDownloadDocument(doc.file_path, doc.name)}
+                        onClick={() => handleDownloadDocument(doc.file_path)}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -382,7 +430,12 @@ export default function DossierDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <WorkflowSteps currentStatus={dossier.status} />
+            <WorkflowSteps 
+              currentStatus={dossier.status} 
+              onValidateStep={handleWorkflowValidation}
+              isUpdating={updateStatus.isPending}
+              canEdit={canValidateWorkflow}
+            />
 
             {/* Quick Info */}
             <div className="rounded-xl bg-card border border-border p-6 shadow-card">
