@@ -37,9 +37,7 @@ export default function DossierList() {
     subscriptionType: d.subscription_type,
     status: d.status,
     createdAt: new Date(d.created_at),
-    assignedTo: d.assigned_profile 
-      ? `${d.assigned_profile.first_name || ''} ${d.assigned_profile.last_name || ''}`.trim()
-      : undefined,
+    assignedTo: d.assigned_to || undefined,
     customer: d.customer ? {
       firstName: d.customer.first_name,
       lastName: d.customer.last_name,

@@ -361,10 +361,7 @@ export default function DossierDetail() {
                           </p>
                           <ChevronRight className="h-3 w-3 text-muted-foreground" />
                           <p className="text-xs text-muted-foreground">
-                            {entry.user_profile 
-                              ? `${entry.user_profile.first_name || ''} ${entry.user_profile.last_name || ''}`.trim()
-                              : 'Utilisateur'
-                            }
+                            Utilisateur
                           </p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
