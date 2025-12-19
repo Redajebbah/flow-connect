@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Droplets, Zap, User, MapPin, FileText, Check } from 'lucide-react';
+import { ArrowLeft, Droplets, Zap, User, MapPin, FileText, Check, Loader2 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { useCreateDossier, SubscriptionType } from '@/hooks/useDossiers';
 
 type Step = 'type' | 'customer' | 'address' | 'documents' | 'review';
 
@@ -21,9 +21,10 @@ const steps: { id: Step; label: string; icon: any }[] = [
 
 export default function NewDossier() {
   const navigate = useNavigate();
+  const createDossier = useCreateDossier();
   const [currentStep, setCurrentStep] = useState<Step>('type');
   const [formData, setFormData] = useState({
-    subscriptionType: '',
+    subscriptionType: '' as SubscriptionType | '',
     firstName: '',
     lastName: '',
     email: '',
@@ -52,10 +53,25 @@ export default function NewDossier() {
     }
   };
 
-  const handleSubmit = () => {
-    toast.success('Dossier créé avec succès!', {
-      description: 'Le dossier a été enregistré et est maintenant en brouillon.',
+  const handleSubmit = async () => {
+    if (!formData.subscriptionType) return;
+    
+    await createDossier.mutateAsync({
+      subscriptionType: formData.subscriptionType as SubscriptionType,
+      customer: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        nationalId: formData.nationalId,
+        street: formData.street,
+        city: formData.city,
+        postalCode: formData.postalCode,
+        region: formData.region,
+      },
+      notes: formData.notes || undefined,
     });
+    
     navigate('/dossiers');
   };
 
@@ -190,49 +206,54 @@ export default function NewDossier() {
               
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">Prénom</Label>
+                  <Label htmlFor="firstName">Prénom *</Label>
                   <Input
                     id="firstName"
                     value={formData.firstName}
                     onChange={(e) => updateFormData('firstName', e.target.value)}
                     placeholder="Jean"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Nom</Label>
+                  <Label htmlFor="lastName">Nom *</Label>
                   <Input
                     id="lastName"
                     value={formData.lastName}
                     onChange={(e) => updateFormData('lastName', e.target.value)}
                     placeholder="Dupont"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => updateFormData('email', e.target.value)}
                     placeholder="jean.dupont@email.fr"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Téléphone</Label>
+                  <Label htmlFor="phone">Téléphone *</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => updateFormData('phone', e.target.value)}
                     placeholder="06 12 34 56 78"
+                    required
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="nationalId">Numéro d'identité nationale</Label>
+                  <Label htmlFor="nationalId">Numéro d'identité nationale *</Label>
                   <Input
                     id="nationalId"
                     value={formData.nationalId}
                     onChange={(e) => updateFormData('nationalId', e.target.value)}
                     placeholder="1234567890123"
+                    required
                   />
                 </div>
               </div>
@@ -253,41 +274,45 @@ export default function NewDossier() {
               
               <div className="grid gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="street">Adresse</Label>
+                  <Label htmlFor="street">Adresse *</Label>
                   <Input
                     id="street"
                     value={formData.street}
                     onChange={(e) => updateFormData('street', e.target.value)}
                     placeholder="15 Rue de la République"
+                    required
                   />
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="postalCode">Code postal</Label>
+                    <Label htmlFor="postalCode">Code postal *</Label>
                     <Input
                       id="postalCode"
                       value={formData.postalCode}
                       onChange={(e) => updateFormData('postalCode', e.target.value)}
                       placeholder="69001"
+                      required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="city">Ville</Label>
+                    <Label htmlFor="city">Ville *</Label>
                     <Input
                       id="city"
                       value={formData.city}
                       onChange={(e) => updateFormData('city', e.target.value)}
                       placeholder="Lyon"
+                      required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="region">Région</Label>
+                  <Label htmlFor="region">Région *</Label>
                   <Input
                     id="region"
                     value={formData.region}
                     onChange={(e) => updateFormData('region', e.target.value)}
                     placeholder="Auvergne-Rhône-Alpes"
+                    required
                   />
                 </div>
               </div>
@@ -302,7 +327,7 @@ export default function NewDossier() {
                   Documents requis
                 </h2>
                 <p className="text-muted-foreground">
-                  Téléchargez les pièces justificatives
+                  Les documents pourront être ajoutés après la création du dossier
                 </p>
               </div>
               
@@ -314,7 +339,7 @@ export default function NewDossier() {
                 ].map((doc) => (
                   <div 
                     key={doc.label}
-                    className="flex items-center justify-between p-4 rounded-lg border border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer"
+                    className="flex items-center justify-between p-4 rounded-lg border border-dashed border-border"
                   >
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5 text-muted-foreground" />
@@ -326,13 +351,10 @@ export default function NewDossier() {
                           )}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          PDF, JPG ou PNG (max 5 Mo)
+                          À ajouter après création
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Parcourir
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -412,7 +434,13 @@ export default function NewDossier() {
             </Button>
             
             {currentStep === 'review' ? (
-              <Button onClick={handleSubmit}>
+              <Button 
+                onClick={handleSubmit}
+                disabled={createDossier.isPending}
+              >
+                {createDossier.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Créer le dossier
               </Button>
             ) : (

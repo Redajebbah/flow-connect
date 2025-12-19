@@ -12,7 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { currentUser } from '@/lib/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
@@ -32,6 +32,15 @@ const roleLabels: Record<string, string> = {
 
 export function Sidebar() {
   const location = useLocation();
+  const { profile, role, signOut } = useAuth();
+
+  const displayName = profile 
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
+    : 'Utilisateur';
+
+  const initials = profile
+    ? `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`.toUpperCase() || profile.email[0].toUpperCase()
+    : 'U';
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border">
@@ -83,17 +92,20 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-primary font-semibold">
-              {currentUser.name.split(' ').map(n => n[0]).join('')}
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {currentUser.name}
+                {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                {roleLabels[currentUser.role]}
+                {role ? roleLabels[role] : 'Chargement...'}
               </p>
             </div>
-            <button className="p-2 rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
+            <button 
+              onClick={signOut}
+              className="p-2 rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
