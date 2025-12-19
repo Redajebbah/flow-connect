@@ -67,7 +67,7 @@ const documentTypeLabels: Record<string, string> = {
 
 export default function DossierDetail() {
   const { id } = useParams();
-  const { isAdmin, isSupervisor } = useAuth();
+  const { user } = useAuth();
   const { data: dossier, isLoading } = useDossier(id);
   const { data: documents } = useDossierDocuments(id);
   const { data: history } = useDossierHistory(id);
@@ -77,8 +77,8 @@ export default function DossierDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>('national_id');
 
-  // Users who can validate workflow steps
-  const canValidateWorkflow = isAdmin || isSupervisor;
+  // All authenticated users can validate workflow steps
+  const canValidateWorkflow = !!user;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
