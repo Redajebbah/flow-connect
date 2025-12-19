@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Droplets, Zap, User, MapPin, FileText, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Droplets, Zap, User, MapPin, FileText, Check, Loader2, Upload, X } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { useCreateDossier, SubscriptionType } from '@/hooks/useDossiers';
+import { useCreateDossier, useUploadDocument, SubscriptionType, DossierDocument } from '@/hooks/useDossiers';
 
 type Step = 'type' | 'customer' | 'address' | 'documents' | 'review';
+
+interface PendingDocument {
+  file: File;
+  type: DossierDocument['type'];
+  label: string;
+}
 
 const steps: { id: Step; label: string; icon: any }[] = [
   { id: 'type', label: 'Type', icon: Zap },
@@ -19,10 +25,21 @@ const steps: { id: Step; label: string; icon: any }[] = [
   { id: 'review', label: 'Validation', icon: Check },
 ];
 
+const documentTypes: { type: DossierDocument['type']; label: string; required: boolean }[] = [
+  { type: 'national_id', label: "Pièce d'identité", required: true },
+  { type: 'other', label: 'Justificatif de domicile', required: true },
+  { type: 'other', label: 'Autre document', required: false },
+];
+
 export default function NewDossier() {
   const navigate = useNavigate();
   const createDossier = useCreateDossier();
+  const uploadDocument = useUploadDocument();
   const [currentStep, setCurrentStep] = useState<Step>('type');
+  const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  
   const [formData, setFormData] = useState({
     subscriptionType: '' as SubscriptionType | '',
     firstName: '',
@@ -53,26 +70,63 @@ export default function NewDossier() {
     }
   };
 
+  const handleFileSelect = (index: number, docType: DossierDocument['type'], label: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Remove existing document of same index and add new one
+    setPendingDocuments(prev => {
+      const filtered = prev.filter((_, i) => i !== index || prev[i]?.label !== label);
+      return [...filtered, { file, type: docType, label }];
+    });
+  };
+
+  const removeDocument = (label: string) => {
+    setPendingDocuments(prev => prev.filter(d => d.label !== label));
+    // Reset file input
+    const input = fileInputRefs.current[label];
+    if (input) input.value = '';
+  };
+
+  const getDocumentForType = (label: string) => {
+    return pendingDocuments.find(d => d.label === label);
+  };
+
   const handleSubmit = async () => {
     if (!formData.subscriptionType) return;
     
-    await createDossier.mutateAsync({
-      subscriptionType: formData.subscriptionType as SubscriptionType,
-      customer: {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        nationalId: formData.nationalId,
-        street: formData.street,
-        city: formData.city,
-        postalCode: formData.postalCode,
-        region: formData.region,
-      },
-      notes: formData.notes || undefined,
-    });
-    
-    navigate('/dossiers');
+    setIsSubmitting(true);
+    try {
+      // Create the dossier first
+      const dossier = await createDossier.mutateAsync({
+        subscriptionType: formData.subscriptionType as SubscriptionType,
+        customer: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          nationalId: formData.nationalId,
+          street: formData.street,
+          city: formData.city,
+          postalCode: formData.postalCode,
+          region: formData.region,
+        },
+        notes: formData.notes || undefined,
+      });
+      
+      // Upload all pending documents
+      for (const doc of pendingDocuments) {
+        await uploadDocument.mutateAsync({
+          dossierId: dossier.id,
+          file: doc.file,
+          type: doc.type,
+        });
+      }
+      
+      navigate('/dossiers');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const updateFormData = (field: string, value: string) => {
@@ -327,36 +381,87 @@ export default function NewDossier() {
                   Documents requis
                 </h2>
                 <p className="text-muted-foreground">
-                  Les documents pourront être ajoutés après la création du dossier
+                  Téléversez les documents nécessaires à la création du dossier
                 </p>
               </div>
               
               <div className="space-y-4">
-                {[
-                  { label: 'Pièce d\'identité', required: true },
-                  { label: 'Justificatif de domicile', required: true },
-                  { label: 'Autre document', required: false },
-                ].map((doc) => (
-                  <div 
-                    key={doc.label}
-                    className="flex items-center justify-between p-4 rounded-lg border border-dashed border-border"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {doc.label}
-                          {doc.required && (
-                            <span className="text-destructive ml-1">*</span>
+                {documentTypes.map((doc, index) => {
+                  const uploadedDoc = getDocumentForType(doc.label);
+                  
+                  return (
+                    <div 
+                      key={`${doc.type}-${index}`}
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-lg border transition-all",
+                        uploadedDoc 
+                          ? "border-primary bg-primary/5" 
+                          : "border-dashed border-border"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-lg shrink-0",
+                          uploadedDoc ? "bg-primary/10" : "bg-muted"
+                        )}>
+                          {uploadedDoc ? (
+                            <Check className="h-5 w-5 text-primary" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-muted-foreground" />
                           )}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          À ajouter après création
-                        </p>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {doc.label}
+                            {doc.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </p>
+                          {uploadedDoc ? (
+                            <p className="text-xs text-primary truncate">
+                              {uploadedDoc.file.name}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              PDF, JPG ou PNG (max 10 Mo)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 shrink-0">
+                        {uploadedDoc ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeDocument(doc.label)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <>
+                            <input
+                              ref={(el) => { fileInputRefs.current[doc.label] = el; }}
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) => handleFileSelect(index, doc.type, doc.label, e)}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRefs.current[doc.label]?.click()}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Choisir
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="space-y-2">
@@ -419,6 +524,26 @@ export default function NewDossier() {
                     {formData.postalCode} {formData.city}, {formData.region}
                   </p>
                 </div>
+
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                    Documents ({pendingDocuments.length})
+                  </h4>
+                  {pendingDocuments.length > 0 ? (
+                    <ul className="space-y-1">
+                      {pendingDocuments.map((doc, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="h-3 w-3 text-primary" />
+                          {doc.label}: {doc.file.name}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Aucun document ajouté
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -428,7 +553,7 @@ export default function NewDossier() {
             <Button
               variant="outline"
               onClick={handlePrev}
-              disabled={currentStepIndex === 0}
+              disabled={currentStepIndex === 0 || isSubmitting}
             >
               Précédent
             </Button>
@@ -436,9 +561,9 @@ export default function NewDossier() {
             {currentStep === 'review' ? (
               <Button 
                 onClick={handleSubmit}
-                disabled={createDossier.isPending}
+                disabled={isSubmitting}
               >
-                {createDossier.isPending ? (
+                {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
                 Créer le dossier
